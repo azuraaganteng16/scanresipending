@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS untuk Export Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Library Kamera Baru: Html5-Qrcode (Jauh Lebih Stabil di Android) -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
 
@@ -22,21 +24,14 @@
 
         <!-- Area Kamera -->
         <div class="relative bg-gray-800 rounded-2xl overflow-hidden shadow-xl border border-gray-700 aspect-video flex flex-col items-center justify-center">
-            <div id="loading-camera" class="absolute inset-0 bg-gray-800 flex flex-col items-center justify-center z-10 hidden">
-                <i class="fa-solid fa-spinner animate-spin text-3xl text-emerald-400 mb-2"></i>
-                <p class="text-sm text-gray-400">Mengaktifkan Kamera...</p>
-            </div>
-            
-            <video id="video" class="w-full h-full object-cover hidden" playsinline></video>
+            <!-- Elemen Scanner dari Library Baru -->
+            <div id="reader" class="w-full h-full object-cover hidden"></div>
             
             <!-- Placeholder Sebelum Kamera Aktif -->
             <div id="placeholder" class="text-center p-6">
                 <i class="fa-solid fa-camera text-5xl text-gray-600 mb-3 animate-pulse"></i>
                 <p class="text-sm text-gray-400">Kamera belum aktif. Klik tombol di bawah untuk mulai.</p>
             </div>
-
-            <!-- Overlay Garis Scan -->
-            <div id="scan-line" class="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_8px_#ef4444] animate-bounce hidden" style="top: 50%;"></div>
         </div>
 
         <!-- Tombol Kontrol Kamera -->
@@ -76,7 +71,6 @@
                 </h3>
             </div>
             <div id="list-resi" class="max-h-60 overflow-y-auto space-y-2 text-sm pr-1">
-                <!-- Baris resi kosong -->
                 <p id="empty-state" class="text-center text-gray-500 py-6 italic">Belum ada resi yang di-scan pada sesi ini.</p>
             </div>
         </div>
@@ -86,8 +80,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-        // Library scan barcode ringan berkinerja tinggi
-        import { BrowserMultiFormatReader } from "https://unpkg.com/@zxing/library@0.19.1/esm/index.js";
 
         // Konfigurasi asli dari proyek Firebase Anda
         const firebaseConfig = {
@@ -104,14 +96,9 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Inisialisasi Barcode Reader
-        const codeReader = new BrowserMultiFormatReader();
-
         // DOM Elements
-        const video = document.getElementById('video');
+        const readerDiv = document.getElementById('reader');
         const placeholder = document.getElementById('placeholder');
-        const loadingCamera = document.getElementById('loading-camera');
-        const scanLine = document.getElementById('scan-line');
         const btnStart = document.getElementById('btn-start');
         const btnStop = document.getElementById('btn-stop');
         const btnExport = document.getElementById('btn-export');
@@ -120,99 +107,97 @@
         const listResiContainer = document.getElementById('list-resi');
         const emptyState = document.getElementById('empty-state');
 
-        // State Array untuk menampung data lokal sesi aktif (agar bisa di-reset saat export excel)
+        // State Variabel
         let dataSesiLokal = [];
-        let isScanning = false;
-        let selectedDeviceId = null;
+        let html5QrcodeScanner = null;
 
-        // Mendapatkan ID Kamera Belakang secara otomatis
-        codeReader.listVideoInputDevices()
-            .then((videoInputDevices) => {
-                if (videoInputDevices.length > 0) {
-                    // Cari kamera belakang jika ada, jika tidak pakai kamera pertama
-                    const backCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('environment'));
-                    selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-                } else {
-                    alert("Kamera tidak ditemukan di perangkat ini.");
-                }
-            })
-            .catch((err) => console.error("Gagal mendeteksi kamera:", err));
-
-        // Fungsi Memulai Scan Kamera
+        // Fungsi Memulai Kamera Belakang secara Instan
         function startScanning() {
-            if (isScanning) return;
-            
             placeholder.classList.add('hidden');
-            loadingCamera.classList.remove('hidden');
+            readerDiv.classList.remove('hidden');
             btnStart.disabled = true;
+            btnStop.disabled = false;
 
-            codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
-                if (result) {
-                    // HENTIKAN SCAN SEGERA agar tidak terscan untuk kedua kalinya berturut-turut
-                    stopScanning();
-                    
-                    // Eksekusi Logika Pemrosesan Resi
-                    handleBarcodeScanned(result.getText());
+            statusKamera.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Aktif`;
+            statusKamera.className = "text-sm font-semibold text-emerald-400 mt-2 flex items-center justify-center gap-1.5";
+
+            // Membuat instance pembaca barcode baru
+            html5QrcodeScanner = new Html5Qrcode("reader");
+
+            // Menjalankan langsung kamera belakang (environment)
+            html5QrcodeScanner.start(
+                { facingMode: "environment" }, 
+                {
+                    fps: 15,    // Kecepatan scan per detik
+                    qrbox: (width, height) => {
+                        return { width: width * 0.8, height: height * 0.6 } // Kotak fokus bidik barcode
+                    }
+                },
+                (decodedText) => {
+                    // JIKA BERHASIL TER-SCAN:
+                    stopScanning(); // Langsung matikan kamera agar tidak scan 2x
+                    handleBarcodeScanned(decodedText); // Kirim data ke Firebase
+                },
+                (errorMessage) => {
+                    // Abaikan eror pencarian saat kamera sedang membidik frame
                 }
-                
-                // Ketika setup kamera selesai berputar (loading hilang)
-                if (!err && loadingCamera.classList.contains('hidden') === false) {
-                    loadingCamera.classList.add('hidden');
-                    video.classList.remove('hidden');
-                    scanLine.classList.remove('hidden');
-                    btnStop.disabled = false;
-                    isScanning = true;
-                    statusKamera.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Aktif`;
-                    statusKamera.className = "text-sm font-semibold text-emerald-400 mt-2 flex items-center justify-center gap-1.5";
-                }
+            ).catch((err) => {
+                console.error("Gagal akses kamera:", err);
+                alert("Gagal membuka kamera. Pastikan izin kamera di browser sudah diberikan.");
+                stopScanning();
             });
         }
 
-        // Fungsi Berhenti Scan Kamera
+        // Fungsi Mematikan Kamera
         function stopScanning() {
-            codeReader.reset();
-            isScanning = false;
-            
-            video.classList.add('hidden');
-            scanLine.classList.add('hidden');
-            loadingCamera.classList.add('hidden');
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    html5QrcodeScanner = null;
+                    resetUI();
+                }).catch((err) => {
+                    html5QrcodeScanner = null;
+                    resetUI();
+                });
+            } else {
+                resetUI();
+            }
+        }
+
+        function resetUI() {
+            readerDiv.classList.add('hidden');
             placeholder.classList.remove('hidden');
-            
             btnStart.disabled = false;
             btnStop.disabled = true;
             statusKamera.innerHTML = `<span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span> Mati`;
             statusKamera.className = "text-sm font-semibold text-red-400 mt-2 flex items-center justify-center gap-1.5";
         }
 
-        // Logika utama saat barcode sukses terbaca
+        // Logika Pengiriman Data ke Firebase
         async function handleBarcodeScanned(nomorResi) {
             const resiBersih = nomorResi.trim();
             if (!resiBersih) return;
 
-            // Buat efek getar pendek pada HP Android jika didukung
-            if (navigator.vibrate) navigator.vibrate(150);
+            if (navigator.vibrate) navigator.vibrate(150); // Getar HP
 
-            // 1. SIMPAN KE DATABASE FIREBASE (Aman abadi di Cloud)
+            // 1. Simpan Cloud Firestore
             try {
                 await addDoc(collection(db, "pending_resi"), {
                     no_resi: resiBersih,
                     timestamp: serverTimestamp(),
                     device: navigator.userAgent
                 });
-                console.log("Sukses upload cloud Firestore!");
             } catch (error) {
-                console.error("Gagal simpan ke Firebase:", error);
-                alert("Gagal sinkronisasi cloud: " + error.message);
+                console.error("Firebase Error:", error);
+                alert("Gagal simpan ke Firebase: " + error.message);
             }
 
-            // 2. SIMPAN KE ARRAY LOKAL SESI & UPDATE UI TAMPILAN
+            // 2. Simpan Sesi Lokal & Update UI Tampilan
             const waktuSekarang = new Date().toLocaleString('id-ID');
             dataSesiLokal.unshift({ 'No Resi': resiBersih, 'Waktu Scan': waktuSekarang });
 
-            // Hilangkan tulisan kosong jika ini resi pertama
-            if (emptyState) emptyState.remove();
+            const checkEmpty = document.getElementById('empty-state');
+            if (checkEmpty) checkEmpty.remove();
 
-            // Tambah baris baru ke dalam daftar list di HP Anda
             const rowHTML = `
                 <div class="flex justify-between items-center bg-gray-700/50 border border-gray-700 p-2.5 rounded-xl animate-fadeIn">
                     <span class="font-mono font-medium text-emerald-300 break-all">${resiBersih}</span>
@@ -220,39 +205,35 @@
                 </div>
             `;
             listResiContainer.insertAdjacentHTML('afterbegin', rowHTML);
-
-            // Update Angka Total Resi Sesi Ini
             totalSesiElement.textContent = dataSesiLokal.length;
 
-            // 3. POP-UP NOTIFIKASI BERHASIL
-            alert(`✅ RESI BERHASIL DI-SCAN!\n\nNomor: ${resiBersih}\n\nKamera dihentikan otomatis agar tidak mendobel. Klik 'Mulai Scan' lagi untuk paket berikutnya.`);
+            // 3. Notifikasi Pop-up Sukses
+            alert(`✅ RESI BERHASIL DI-SCAN!\n\nNomor: ${resiBersih}\n\nKamera otomatis berhenti agar tidak ganda. Klik 'Mulai Scan' lagi untuk paket selanjutnya.`);
         }
 
-        // LOGIKA DOWNLOAD EXCEL & RESET TOTAL HITUNGAN
+        // Logika Excel & Reset Hitungan Sesi ke 0
         function exportToExcelAndReset() {
             if (dataSesiLokal.length === 0) {
                 alert("Belum ada data resi pada sesi ini untuk di-export!");
                 return;
             }
 
-            // Generate File Excel menggunakan SheetJS
             const worksheet = XLSX.utils.json_to_sheet(dataSesiLokal);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Resi Pending");
 
-            // Beri nama file berdasarkan tanggal saat ini
             const tanggal = new Date().toISOString().slice(0,10);
             XLSX.writeFile(workbook, `Rekap_Resi_Pending_${tanggal}.xlsx`);
 
-            // --- PROSES RESET TOTAL HITUNGAN SESI ---
-            dataSesiLokal = []; // Kosongkan penampung lokal
-            totalSesiElement.textContent = "0"; // Kembalikan angka counter ke 0
-            listResiContainer.innerHTML = `<p id="empty-state" class="text-center text-gray-500 py-6 italic">Belum ada resi yang di-scan pada sesi ini.</p>`; // Reset list visual
+            // RESET TOTAL COUNTER SCREEN
+            dataSesiLokal = []; 
+            totalSesiElement.textContent = "0"; 
+            listResiContainer.innerHTML = `<p id="empty-state" class="text-center text-gray-500 py-6 italic">Belum ada resi yang di-scan pada sesi ini.</p>`; 
             
-            alert("📊 File Excel berhasil di-download!\n\nHitungan total resi di layar telah ter-reset kembali ke nol. Data Anda tetap tersimpan utuh di database Firebase Cloud.");
+            alert("📊 File Excel berhasil di-download!\n\nHitungan total resi di layar telah ter-reset kembali ke nol. Data Anda tetap tersimpan utuh di Firebase Cloud.");
         }
 
-        // Event Listeners Tombol
+        // Event Listener Tombol
         btnStart.addEventListener('click', startScanning);
         btnStop.addEventListener('click', stopScanning);
         btnExport.addEventListener('click', exportToExcelAndReset);
@@ -264,6 +245,8 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+        /* Memperbaiki tampilan box video library baru agar pas di kontainer */
+        #reader video { object-cover: cover !important; width: 100% !important; height: 100% !important; }
     </style>
 </body>
 </html>
