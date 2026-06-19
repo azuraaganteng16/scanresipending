@@ -3,226 +3,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Pending Resi</title>
-    
+    <title>Scan Resi Pending</title>
+    <!-- Tailwind CSS untuk Desain Modern -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome untuk Ikon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- SheetJS untuk Export Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800">
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
 
-    <div class="max-w-4xl mx-auto p-4 md:p-6">
-        
-        <header class="flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 gap-4">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-500 text-white p-3 rounded-xl shadow-md shadow-blue-200">
-                    <i class="fa-solid fa-boxes-stacked text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight">Data Pending Resi</h1>
-                    <p class="text-xs text-slate-400">Sinkronisasi Otomatis Firebase Cloud</p>
-                </div>
-            </div>
-            <div class="bg-slate-100 px-4 py-2 rounded-xl text-center min-w-[120px]">
-                <span class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Resi</span>
-                <span id="totalResi" class="text-2xl font-bold text-slate-700">0</span>
-            </div>
-        </header>
+    <div class="max-w-md mx-auto p-4 space-y-6">
+        <!-- Header -->
+        <div class="text-center py-4 bg-gray-800 rounded-2xl shadow-xl border border-gray-700">
+            <h1 class="text-2xl font-bold text-emerald-400"><i class="fa-solid fa-barcode mr-2"></i>Scan Resi Pending</h1>
+            <p class="text-xs text-gray-400 mt-1">Aplikasi Pencatatan Realtime Cloud</p>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Area Kamera -->
+        <div class="relative bg-gray-800 rounded-2xl overflow-hidden shadow-xl border border-gray-700 aspect-video flex flex-col items-center justify-center">
+            <div id="loading-camera" class="absolute inset-0 bg-gray-800 flex flex-col items-center justify-center z-10 hidden">
+                <i class="fa-solid fa-spinner animate-spin text-3xl text-emerald-400 mb-2"></i>
+                <p class="text-sm text-gray-400">Mengaktifkan Kamera...</p>
+            </div>
             
-            <div class="md:col-span-1 flex flex-col gap-4">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-sm text-slate-400 uppercase tracking-wider mb-4">Kontrol Panel</h3>
-                    
-                    <button id="btnToggleScan" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-100 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer mb-3">
-                        <i class="fa-solid fa-camera"></i> <span>Mulai Scan</span>
-                    </button>
-                    
-                    <button onclick="exportToExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-emerald-100 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-file-excel"></i> <span>Export Excel</span>
-                    </button>
-                </div>
-
-                <div id="scannerContainer" class="hidden bg-white p-4 rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <div id="reader" class="rounded-xl overflow-hidden bg-slate-900"></div>
-                </div>
+            <video id="video" class="w-full h-full object-cover hidden" playsinline></video>
+            
+            <!-- Placeholder Sebelum Kamera Aktif -->
+            <div id="placeholder" class="text-center p-6">
+                <i class="fa-solid fa-camera text-5xl text-gray-600 mb-3 animate-pulse"></i>
+                <p class="text-sm text-gray-400">Kamera belum aktif. Klik tombol di bawah untuk mulai.</p>
             </div>
 
-            <div class="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <h3 class="font-bold text-sm text-slate-500 uppercase tracking-wider">Daftar Scan Resi</h3>
-                    <span class="flex items-center gap-1.5 text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-1 rounded-full">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Firebase Live
-                    </span>
-                </div>
-                
-                <div class="overflow-x-auto max-h-[500px]">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
-                                <th class="py-3 px-5 w-16">No</th>
-                                <th class="py-3 px-5">Nomor Resi</th>
-                                <th class="py-3 px-5">Waktu Scan</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelResi" class="divide-y divide-slate-100 text-sm">
-                            </tbody>
-                    </table>
-                    
-                    <div id="emptyState" class="p-12 text-center text-slate-400">
-                        <i class="fa-regular fa-folder-open text-4xl mb-3 block text-slate-300"></i>
-                        Belum ada data resi. Silakan scan sekarang.
-                    </div>
+            <!-- Overlay Garis Scan -->
+            <div id="scan-line" class="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_8px_#ef4444] animate-bounce hidden" style="top: 50%;"></div>
+        </div>
+
+        <!-- Tombol Kontrol Kamera -->
+        <div class="grid grid-cols-2 gap-3">
+            <button id="btn-start" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30">
+                <i class="fa-solid fa-play"></i> Mulai Scan
+            </button>
+            <button id="btn-stop" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-semibold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 border border-gray-600" disabled>
+                <i class="fa-solid fa-stop"></i> Berhenti
+            </button>
+        </div>
+
+        <!-- Statistik Kontainer -->
+        <div class="grid grid-cols-2 gap-4 bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-xl">
+            <div class="text-center border-r border-gray-700">
+                <span class="text-xs text-gray-400 uppercase tracking-wider">Sesi Ini (Belum Di-export)</span>
+                <div id="total-sesi" class="text-3xl font-bold text-emerald-400 mt-1">0</div>
+            </div>
+            <div class="text-center">
+                <span class="text-xs text-gray-400 uppercase tracking-wider">Status Kamera</span>
+                <div id="status-kamera" class="text-sm font-semibold text-red-400 mt-2 flex items-center justify-center gap-1.5">
+                    <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span> Mati
                 </div>
             </div>
+        </div>
 
+        <!-- Tombol Ekspor Excel -->
+        <button id="btn-export" class="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 shadow-xl shadow-teal-900/20">
+            <i class="fa-solid fa-file-excel text-lg"></i> Export ke Excel & Reset Tampilan
+        </button>
+
+        <!-- Daftar Resi Ter-scan -->
+        <div class="bg-gray-800 rounded-2xl p-4 border border-gray-700 shadow-xl space-y-3">
+            <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                <h3 class="font-semibold text-gray-200 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-emerald-400"></i> List Resi Sesi Ini
+                </h3>
+            </div>
+            <div id="list-resi" class="max-h-60 overflow-y-auto space-y-2 text-sm pr-1">
+                <!-- Baris resi kosong -->
+                <p id="empty-state" class="text-center text-gray-500 py-6 italic">Belum ada resi yang di-scan pada sesi ini.</p>
+            </div>
         </div>
     </div>
 
+    <!-- Firebase SDK (Modular v9) -->
     <script type="module">
-        // Import Firebase SDK versi terbaru (v10+)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+        // Library scan barcode ringan berkinerja tinggi
+        import { BrowserMultiFormatReader } from "https://unpkg.com/@zxing/library@0.19.1/esm/index.js";
 
-        // Menggunakan data konfigurasi asli dari screenshot Anda
+        // Konfigurasi asli dari proyek Firebase Anda
         const firebaseConfig = {
-  apiKey: "AIzaSyDIYwfI_mnZDcsLJQQMLKQoX-XkMY-dP08",
-  authDomain: "scan-resi-app.firebaseapp.com",
-  projectId: "scan-resi-app",
-  storageBucket: "scan-resi-app.firebasestorage.app",
-  messagingSenderId: "435869269413",
-  appId: "1:435869269413:web:fb0934a7dabed3c5237c4c",
-  measurementId: "G-VK4XFP40KE"
-};
+          apiKey: "AIzaSyDIYwfI_mnZDcsLJQQMLKQoX-XkMY-dP08",
+          authDomain: "scan-resi-app.firebaseapp.com",
+          projectId: "scan-resi-app",
+          storageBucket: "scan-resi-app.firebasestorage.app",
+          messagingSenderId: "435869269413",
+          appId: "1:435869269413:web:fb0934a7dabed3c5237c4c",
+          measurementId: "G-VK4XFP40KE"
+        };
 
         // Inisialisasi Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const resiCollection = collection(db, "pending_resi");
 
-        let html5QrcodeScanner = null;
+        // Inisialisasi Barcode Reader
+        const codeReader = new BrowserMultiFormatReader();
+
+        // DOM Elements
+        const video = document.getElementById('video');
+        const placeholder = document.getElementById('placeholder');
+        const loadingCamera = document.getElementById('loading-camera');
+        const scanLine = document.getElementById('scan-line');
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+        const btnExport = document.getElementById('btn-export');
+        const statusKamera = document.getElementById('status-kamera');
+        const totalSesiElement = document.getElementById('total-sesi');
+        const listResiContainer = document.getElementById('list-resi');
+        const emptyState = document.getElementById('empty-state');
+
+        // State Array untuk menampung data lokal sesi aktif (agar bisa di-reset saat export excel)
+        let dataSesiLokal = [];
         let isScanning = false;
-        let localDataArray = [];
+        let selectedDeviceId = null;
 
-        const btnToggleScan = document.getElementById('btnToggleScan');
-        const scannerContainer = document.getElementById('scannerContainer');
+        // Mendapatkan ID Kamera Belakang secara otomatis
+        codeReader.listVideoInputDevices()
+            .then((videoInputDevices) => {
+                if (videoInputDevices.length > 0) {
+                    // Cari kamera belakang jika ada, jika tidak pakai kamera pertama
+                    const backCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('environment'));
+                    selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+                } else {
+                    alert("Kamera tidak ditemukan di perangkat ini.");
+                }
+            })
+            .catch((err) => console.error("Gagal mendeteksi kamera:", err));
 
-        // 1. Ambil Data Realtime dari Firebase Firestore
-        const q = query(resiCollection, orderBy("timestamp", "desc"));
-        onSnapshot(q, (snapshot) => {
-            const tbody = document.getElementById('tabelResi');
-            const emptyState = document.getElementById('emptyState');
-            tbody.innerHTML = '';
-            localDataArray = [];
+        // Fungsi Memulai Scan Kamera
+        function startScanning() {
+            if (isScanning) return;
             
-            let count = 1;
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                localDataArray.push(data);
+            placeholder.classList.add('hidden');
+            loadingCamera.classList.remove('hidden');
+            btnStart.disabled = true;
 
-                const row = `<tr class="hover:bg-slate-50 transition-colors">
-                    <td class="py-3 px-5 font-medium text-slate-400">${count}</td>
-                    <td class="py-3 px-5 font-semibold text-slate-700 tracking-wide">${data.resi}</td>
-                    <td class="py-3 px-5 text-slate-400 text-xs">${data.waktu}</td>
-                </tr>`;
-                tbody.innerHTML += row;
-                count++;
-            });
-
-            document.getElementById('totalResi').textContent = snapshot.size;
-            
-            if (snapshot.size > 0) {
-                emptyState.classList.add('hidden');
-            } else {
-                emptyState.classList.remove('hidden');
-            }
-        });
-
-        // 2. Logic Tombol Kamera Scan
-        btnToggleScan.addEventListener('click', () => {
-            if (!isScanning) {
-                scannerContainer.classList.remove('hidden');
-                btnToggleScan.innerHTML = `<i class="fa-solid fa-stop"></i> <span>Hentikan</span>`;
-                btnToggleScan.className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-rose-100 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer mb-3";
-                startScanner();
-                isScanning = true;
-            } else {
-                stopScanner();
-            }
-        });
-
-        function startScanner() {
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            html5QrcodeScanner.start(
-                { facingMode: "environment" }, 
-                { fps: 12, qrbox: { width: 260, height: 160 } },
-                onScanSuccess
-            ).catch(err => {
-                alert("Kamera gagal diakses: " + err);
-                stopScanner();
+            codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
+                if (result) {
+                    // HENTIKAN SCAN SEGERA agar tidak terscan untuk kedua kalinya berturut-turut
+                    stopScanning();
+                    
+                    // Eksekusi Logika Pemrosesan Resi
+                    handleBarcodeScanned(result.getText());
+                }
+                
+                // Ketika setup kamera selesai berputar (loading hilang)
+                if (!err && loadingCamera.classList.contains('hidden') === false) {
+                    loadingCamera.classList.add('hidden');
+                    video.classList.remove('hidden');
+                    scanLine.classList.remove('hidden');
+                    btnStop.disabled = false;
+                    isScanning = true;
+                    statusKamera.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Aktif`;
+                    statusKamera.className = "text-sm font-semibold text-emerald-400 mt-2 flex items-center justify-center gap-1.5";
+                }
             });
         }
 
-        function stopScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => {
-                    scannerContainer.classList.add('hidden');
-                    btnToggleScan.innerHTML = `<i class="fa-solid fa-camera"></i> <span>Mulai Scan</span>`;
-                    btnToggleScan.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-100 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer mb-3";
-                    isScanning = false;
-                }).catch(err => console.error(err));
-            }
+        // Fungsi Berhenti Scan Kamera
+        function stopScanning() {
+            codeReader.reset();
+            isScanning = false;
+            
+            video.classList.add('hidden');
+            scanLine.classList.add('hidden');
+            loadingCamera.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+            
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+            statusKamera.innerHTML = `<span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span> Mati`;
+            statusKamera.className = "text-sm font-semibold text-red-400 mt-2 flex items-center justify-center gap-1.5";
         }
 
-        // 3. Simpan Ke Firebase Ketika Scan Sukses
-        async function onScanSuccess(decodedText) {
-            const sudahAda = localDataArray.some(item => item.resi === decodedText);
-            if (sudahAda) return; 
+        // Logika utama saat barcode sukses terbaca
+        async function handleBarcodeScanned(nomorResi) {
+            const resiBersih = nomorResi.trim();
+            if (!resiBersih) return;
 
-            const sekarang = new Date();
-            const opsi = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-            const waktuStr = sekarang.toLocaleString('id-ID', opsi).replace(/,/g, '');
+            // Buat efek getar pendek pada HP Android jika didukung
+            if (navigator.vibrate) navigator.vibrate(150);
 
+            // 1. SIMPAN KE DATABASE FIREBASE (Aman abadi di Cloud)
             try {
-                await addDoc(resiCollection, {
-                    resi: decodedText,
-                    waktu: waktuStr,
-                    timestamp: sekarang.getTime()
+                await addDoc(collection(db, "pending_resi"), {
+                    no_resi: resiBersih,
+                    timestamp: serverTimestamp(),
+                    device: navigator.userAgent
                 });
-                
-                if (navigator.vibrate) navigator.vibrate(100);
-                
+                console.log("Sukses upload cloud Firestore!");
             } catch (error) {
-                console.error("Gagal simpan ke Firebase: ", error);
-                alert("Gagal sinkronisasi database cloud.");
+                console.error("Gagal simpan ke Firebase:", error);
+                alert("Gagal sinkronisasi cloud: " + error.message);
             }
+
+            // 2. SIMPAN KE ARRAY LOKAL SESI & UPDATE UI TAMPILAN
+            const waktuSekarang = new Date().toLocaleString('id-ID');
+            dataSesiLokal.unshift({ 'No Resi': resiBersih, 'Waktu Scan': waktuSekarang });
+
+            // Hilangkan tulisan kosong jika ini resi pertama
+            if (emptyState) emptyState.remove();
+
+            // Tambah baris baru ke dalam daftar list di HP Anda
+            const rowHTML = `
+                <div class="flex justify-between items-center bg-gray-700/50 border border-gray-700 p-2.5 rounded-xl animate-fadeIn">
+                    <span class="font-mono font-medium text-emerald-300 break-all">${resiBersih}</span>
+                    <span class="text-xs text-gray-400 shrink-0 ml-2">${new Date().toLocaleTimeString('id-ID')}</span>
+                </div>
+            `;
+            listResiContainer.insertAdjacentHTML('afterbegin', rowHTML);
+
+            // Update Angka Total Resi Sesi Ini
+            totalSesiElement.textContent = dataSesiLokal.length;
+
+            // 3. POP-UP NOTIFIKASI BERHASIL
+            alert(`✅ RESI BERHASIL DI-SCAN!\n\nNomor: ${resiBersih}\n\nKamera dihentikan otomatis agar tidak mendobel. Klik 'Mulai Scan' lagi untuk paket berikutnya.`);
         }
 
-        // 4. Fungsi Export ke Excel Global
-        window.exportToExcel = function() {
-            if (localDataArray.length === 0) {
-                alert("Data kosong! Tidak ada yang bisa di-export.");
+        // LOGIKA DOWNLOAD EXCEL & RESET TOTAL HITUNGAN
+        function exportToExcelAndReset() {
+            if (dataSesiLokal.length === 0) {
+                alert("Belum ada data resi pada sesi ini untuk di-export!");
                 return;
             }
 
-            const dataTerurut = [...localDataArray].reverse();
-
-            const dataExcel = dataTerurut.map((item, index) => ({
-                "No": index + 1,
-                "Nomor Resi / Barcode": item.resi,
-                "Waktu Scan": item.waktu
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(dataExcel);
+            // Generate File Excel menggunakan SheetJS
+            const worksheet = XLSX.utils.json_to_sheet(dataSesiLokal);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Pending Resi");
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Resi Pending");
 
-            const tgl = new Date().toISOString().slice(0,10);
-            XLSX.writeFile(workbook, `Rekap_Pending_Resi_${tgl}.xlsx`);
+            // Beri nama file berdasarkan tanggal saat ini
+            const tanggal = new Date().toISOString().slice(0,10);
+            XLSX.writeFile(workbook, `Rekap_Resi_Pending_${tanggal}.xlsx`);
+
+            // --- PROSES RESET TOTAL HITUNGAN SESI ---
+            dataSesiLokal = []; // Kosongkan penampung lokal
+            totalSesiElement.textContent = "0"; // Kembalikan angka counter ke 0
+            listResiContainer.innerHTML = `<p id="empty-state" class="text-center text-gray-500 py-6 italic">Belum ada resi yang di-scan pada sesi ini.</p>`; // Reset list visual
+            
+            alert("📊 File Excel berhasil di-download!\n\nHitungan total resi di layar telah ter-reset kembali ke nol. Data Anda tetap tersimpan utuh di database Firebase Cloud.");
         }
+
+        // Event Listeners Tombol
+        btnStart.addEventListener('click', startScanning);
+        btnStop.addEventListener('click', stopScanning);
+        btnExport.addEventListener('click', exportToExcelAndReset);
     </script>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+    </style>
 </body>
 </html>
