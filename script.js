@@ -40,6 +40,7 @@ const btnModalClose = document.getElementById('btn-modal-close');
 const ocrLoading = document.getElementById('ocr-loading');
 const ocrProgress = document.getElementById('ocr-progress');
 const ocrForm = document.getElementById('ocr-form');
+const inputNamaPenerima = document.getElementById('input-nama-penerima');
 const inputNamaBarang = document.getElementById('input-nama-barang');
 const inputQty = document.getElementById('input-qty');
 const ocrRawText = document.getElementById('ocr-raw-text');
@@ -47,7 +48,7 @@ const btnFotoUlang = document.getElementById('btn-foto-ulang');
 const btnSimpanBarang = document.getElementById('btn-simpan-barang');
 
 // State Variabel
-let dataSesiLokal = []; // [{ id, noResi, waktuScan, namaBarang, qty }]
+let dataSesiLokal = []; // [{ id, noResi, waktuScan, namaPenerima, namaBarang, qty }]
 let html5QrcodeScanner = null;
 let resiIdAktif = null; // id baris yang sedang diisi lewat modal OCR
 
@@ -139,6 +140,7 @@ async function handleBarcodeScanned(nomorResi) {
         id: entryId,
         noResi: resiBersih,
         waktuScan: waktuSekarang,
+        namaPenerima: '',
         namaBarang: '',
         qty: ''
     });
@@ -149,7 +151,11 @@ async function handleBarcodeScanned(nomorResi) {
     listResiContainer.insertAdjacentHTML('afterbegin', renderResiRow(dataSesiLokal[0]));
     updateCounters();
 
-    alert(`✅ RESI BERHASIL DI-SCAN!\n\nNomor: ${resiBersih}\n\nKamera otomatis berhenti agar tidak ganda. Klik 'Mulai Scan' lagi untuk paket selanjutnya, atau tambahkan foto label barang di daftar bawah.`);
+    // Langsung minta foto label barang -- wajib, supaya tidak ada resi yang
+    // ke-export tanpa data barang karena lupa diisi belakangan.
+    resiIdAktif = entryId;
+    inputFotoLabel.value = '';
+    inputFotoLabel.click();
 }
 
 // ===========================================
@@ -161,7 +167,7 @@ function renderResiRow(entry) {
         ? `
             <div class="item-summary" data-entry-id="${entry.id}">
                 <i class="fa-solid fa-box-open"></i>
-                <span>${escapeHtml(entry.namaBarang)} &mdash; Qty: ${escapeHtml(String(entry.qty || '-'))}</span>
+                <span>${escapeHtml(entry.namaBarang)} &mdash; Qty: ${escapeHtml(String(entry.qty || '-'))}${entry.namaPenerima ? ' &middot; Penerima: ' + escapeHtml(entry.namaPenerima) : ''}</span>
                 <button type="button" class="btn-edit-label" data-entry-id="${entry.id}">Edit</button>
             </div>`
         : `
@@ -271,6 +277,7 @@ async function runOcr(file) {
         const parsed = parseLabelText(rawText);
 
         ocrRawText.textContent = rawText.trim() || '(tidak ada teks terbaca)';
+        inputNamaPenerima.value = parsed.namaPenerima;
         inputNamaBarang.value = parsed.namaBarang;
         inputQty.value = parsed.qty || 1;
 
@@ -281,6 +288,7 @@ async function runOcr(file) {
         ocrLoading.classList.add('hidden');
         ocrForm.classList.remove('hidden');
         ocrRawText.textContent = '(OCR gagal: ' + error.message + ')';
+        inputNamaPenerima.value = '';
         inputNamaBarang.value = '';
         inputQty.value = 1;
         inputNamaBarang.placeholder = 'OCR gagal membaca, isi manual';
@@ -300,6 +308,13 @@ function parseLabelText(rawText) {
 
     let namaBarang = '';
     let qty = '';
+    let namaPenerima = '';
+
+    // --- Nama penerima: baris "Penerima : R**H**" ---
+    const penerimaMatch = text.match(/Penerima\s*:?\s*([^\n]+)/i);
+    if (penerimaMatch) {
+        namaPenerima = penerimaMatch[1].trim();
+    }
 
     // --- Coba pola 1: blok "Product Name ... Qty" ---
     const productNameIdx = lines.findIndex(l => /product\s*name/i.test(l));
@@ -348,7 +363,8 @@ function parseLabelText(rawText) {
 
     return {
         namaBarang: namaBarang || '',
-        qty: qty || ''
+        qty: qty || '',
+        namaPenerima: namaPenerima || ''
     };
 }
 
@@ -361,6 +377,7 @@ btnSimpanBarang.addEventListener('click', () => {
     const entry = dataSesiLokal.find(en => en.id === resiIdAktif);
     if (!entry) return;
 
+    entry.namaPenerima = inputNamaPenerima.value.trim();
     entry.namaBarang = inputNamaBarang.value.trim();
     entry.qty = inputQty.value.trim();
 
@@ -380,6 +397,7 @@ function exportToExcelAndReset() {
 
     const dataExport = dataSesiLokal.map(entry => ({
         'No Resi': entry.noResi,
+        'Nama Penerima': entry.namaPenerima || '',
         'Nama Barang': entry.namaBarang || '',
         'Qty': entry.qty || '',
         'Waktu Scan': entry.waktuScan
@@ -388,6 +406,7 @@ function exportToExcelAndReset() {
     const worksheet = XLSX.utils.json_to_sheet(dataExport);
     worksheet['!cols'] = [
         { wch: 22 }, // No Resi
+        { wch: 18 }, // Nama Penerima
         { wch: 45 }, // Nama Barang
         { wch: 8 },  // Qty
         { wch: 22 }  // Waktu Scan

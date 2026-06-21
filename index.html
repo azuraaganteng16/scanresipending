@@ -136,6 +136,11 @@
             <!-- Form koreksi, muncul setelah OCR selesai -->
             <div id="ocr-form" class="hidden space-y-4">
                 <div>
+                    <label class="field-label" for="input-nama-penerima">Nama Penerima</label>
+                    <input type="text" id="input-nama-penerima" class="field-input font-mono text-sm" placeholder="Belum terbaca, isi manual">
+                    <p class="text-[11px] text-gray-600 mt-1">Biasanya tersensor di label (mis. "R**H**") &mdash; itu wajar.</p>
+                </div>
+                <div>
                     <label class="field-label" for="input-nama-barang">Nama Barang</label>
                     <textarea id="input-nama-barang" rows="3" class="field-input font-mono text-sm" placeholder="Nama produk belum terbaca, isi manual"></textarea>
                     <p class="text-[11px] text-gray-600 mt-1">Hasil tebakan otomatis &mdash; kadang kode SKU ikut terbaca, hapus/perbaiki bila perlu.</p>
