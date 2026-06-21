@@ -255,9 +255,17 @@ btnFotoUlang.addEventListener('click', () => {
     inputFotoLabel.click();
 });
 
-async function runOcr(file) {
-    try {
-        const result = await Tesseract.recognize(file, 'ind+eng', {
+// ===========================================
+// WORKER OCR PERSISTEN
+// Dibuat sekali, dipakai ulang di semua scan supaya tidak
+// memuat ulang model bahasa setiap kali foto.
+// ===========================================
+let tesseractWorker = null;
+let workerReady = null;
+
+function getOcrWorker() {
+    if (!workerReady) {
+        workerReady = Tesseract.createWorker('eng', 1, {
             logger: (m) => {
                 if (m.status && typeof m.progress === 'number') {
                     const persen = Math.round(m.progress * 100);
@@ -271,7 +279,71 @@ async function runOcr(file) {
                     ocrProgress.textContent = `${label}... ${persen}%`;
                 }
             }
+        }).then((worker) => {
+            tesseractWorker = worker;
+            return worker;
+        }).catch((err) => {
+            workerReady = null; // izinkan percobaan ulang di panggilan berikutnya
+            throw err;
         });
+    }
+    return workerReady;
+}
+
+// Mulai siapkan worker di latar belakang begitu halaman dibuka,
+// supaya foto pertama tidak harus menunggu loading model dari nol.
+getOcrWorker().catch((err) => console.warn('Pre-warm OCR worker gagal:', err));
+
+// ===========================================
+// PREPROCESSING GAMBAR: resize + grayscale + kontras
+// Mempercepat OCR signifikan karena Tesseract tidak perlu
+// mengolah foto kamera beresolusi penuh & berwarna.
+// ===========================================
+function preprocessImage(file, maxWidth = 1500) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            const scale = Math.min(1, maxWidth / img.width);
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+
+            // Grayscale + naikkan kontras supaya teks lebih tegas dari background
+            const imageData = ctx.getImageData(0, 0, w, h);
+            const data = imageData.data;
+            const contrast = 1.35;
+            const intercept = 128 * (1 - contrast);
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                const adjusted = gray * contrast + intercept;
+                const clamped = Math.max(0, Math.min(255, adjusted));
+                data[i] = data[i + 1] = data[i + 2] = clamped;
+            }
+            ctx.putImageData(imageData, 0, 0);
+
+            canvas.toBlob((blob) => {
+                URL.revokeObjectURL(img.src);
+                if (blob) resolve(blob);
+                else reject(new Error('Gagal memproses gambar'));
+            }, 'image/jpeg', 0.85);
+        };
+        img.onerror = () => reject(new Error('Gagal memuat gambar'));
+        img.src = URL.createObjectURL(file);
+    });
+}
+
+async function runOcr(file) {
+    try {
+        ocrProgress.textContent = 'Mengompres gambar...';
+        const processedBlob = await preprocessImage(file);
+
+        const worker = await getOcrWorker();
+        const result = await worker.recognize(processedBlob);
 
         const rawText = result.data.text || '';
         const parsed = parseLabelText(rawText);
