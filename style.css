@@ -1,0 +1,248 @@
+/* ===========================================
+   Scan Resi Pending — Style Kustom
+   Tema: "tiket gudang" — kertas resi termal,
+   garis perforasi, aksen hijau pemindai.
+   =========================================== */
+
+:root {
+    --bg-base: #0b0f0d;
+    --bg-card: #121815;
+    --bg-card-raised: #161f1b;
+    --border-soft: #232c28;
+    --emerald: #34d399;
+    --emerald-dim: #1f7a5c;
+    --paper-line: #1c2420;
+}
+
+/* ---------- Tipografi ---------- */
+.font-display { font-family: "Space Grotesk", system-ui, sans-serif; }
+.font-body, body { font-family: "Space Grotesk", system-ui, sans-serif; }
+.font-mono, #list-resi, #total-sesi { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+/* ---------- Background bertekstur kertas resi ---------- */
+.bg-app {
+    background-color: var(--bg-base);
+    background-image:
+        radial-gradient(circle at 1px 1px, rgba(52, 211, 153, 0.07) 1px, transparent 0);
+    background-size: 22px 22px;
+}
+
+/* ---------- Eyebrow label (kecil, huruf besar, berjarak) ---------- */
+.eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #6b7c74;
+}
+
+/* ---------- Kartu bergaya tiket/resi cetak ---------- */
+.ticket-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 18px;
+    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Garis perforasi pemisah, seperti sobekan tiket */
+.perforation {
+    position: relative;
+    height: 1px;
+    background-image: repeating-linear-gradient(
+        to right,
+        var(--border-soft) 0,
+        var(--border-soft) 6px,
+        transparent 6px,
+        transparent 12px
+    );
+}
+.perforation::before,
+.perforation::after {
+    content: "";
+    position: absolute;
+    top: -7px;
+    width: 14px;
+    height: 14px;
+    background: var(--bg-base);
+    border-radius: 50%;
+}
+.perforation::before { left: -7px; }
+.perforation::after { right: -7px; }
+
+/* Lencana ikon di pojok header */
+.scan-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--emerald);
+    background: linear-gradient(145deg, rgba(52,211,153,0.16), rgba(52,211,153,0.04));
+    border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+/* ---------- Kartu statistik kecil bergaya gantungan tag ---------- */
+.stat-tag {
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 14px 16px;
+    position: relative;
+}
+.stat-tag::before {
+    /* lubang gantungan tag, dekoratif */
+    content: "";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--bg-base);
+    border: 1px solid var(--border-soft);
+}
+
+/* ---------- Tombol ---------- */
+.btn-primary,
+.btn-secondary,
+.btn-export {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 16px;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 14.5px;
+    transition: transform 0.15s ease, filter 0.15s ease, background-color 0.15s ease;
+}
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled),
+.btn-export:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+.btn-primary {
+    background: var(--emerald);
+    color: #06281d;
+    box-shadow: 0 8px 20px -6px rgba(52, 211, 153, 0.45);
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-primary:disabled {
+    background: #1d2723;
+    color: #54635c;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: var(--bg-card-raised);
+    color: #c2cdc8;
+    border: 1px solid var(--border-soft);
+}
+.btn-secondary:hover:not(:disabled) { background: #1c2521; border-color: #3a4640; }
+.btn-secondary:disabled {
+    color: #44504a;
+    cursor: not-allowed;
+}
+
+.btn-export {
+    background: linear-gradient(135deg, #0d9488, #059669);
+    color: white;
+    box-shadow: 0 10px 24px -8px rgba(5, 150, 105, 0.5);
+}
+.btn-export:hover { filter: brightness(1.06); }
+
+/* ---------- Pil penghitung di header daftar ---------- */
+.count-pill {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--emerald);
+    background: rgba(52, 211, 153, 0.1);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    padding: 2px 9px;
+    border-radius: 999px;
+}
+
+/* ---------- Placeholder kamera ---------- */
+.placeholder-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    border: 1.5px dashed #3a4640;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #4a5650;
+}
+
+/* ---------- Viewfinder: sudut penanda + garis laser saat kamera aktif ---------- */
+.viewfinder {
+    position: absolute;
+    inset: 10%;
+    pointer-events: none;
+    z-index: 20;
+}
+.vf-corner {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border: 3px solid var(--emerald);
+    filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.6));
+}
+.vf-tl { top: 0; left: 0; border-right: none; border-bottom: none; border-top-left-radius: 8px; }
+.vf-tr { top: 0; right: 0; border-left: none; border-bottom: none; border-top-right-radius: 8px; }
+.vf-bl { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 8px; }
+.vf-br { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 8px; }
+
+.vf-laser {
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--emerald), transparent);
+    box-shadow: 0 0 10px 1px rgba(52, 211, 153, 0.8);
+    animation: laserSweep 1.8s ease-in-out infinite;
+}
+
+@keyframes laserSweep {
+    0%, 100% { top: 8%; opacity: 0.3; }
+    50% { top: 92%; opacity: 1; }
+}
+
+/* ---------- Baris hasil scan & animasi masuk ---------- */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+
+.resi-row {
+    background: var(--bg-card-raised);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--emerald);
+    border-radius: 10px;
+}
+
+/* Memperbaiki tampilan box video library html5-qrcode agar pas di kontainer */
+#reader video {
+    object-fit: cover !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ---------- Scrollbar tipis untuk daftar resi ---------- */
+#list-resi::-webkit-scrollbar { width: 5px; }
+#list-resi::-webkit-scrollbar-track { background: transparent; }
+#list-resi::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 999px; }
+
+/* ---------- Hormati preferensi reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .vf-laser { animation: none; top: 50%; }
+    .animate-fadeIn { animation: none; }
+}
